@@ -1,0 +1,23 @@
+---
+
+- name: Check existence of tsdproxy systemd service
+  ansible.builtin.stat:
+    path: "{{ devture_systemd_docker_base_systemd_path }}/{{ tsdproxy_identifier }}.service"
+  register: tsdproxy_service_stat
+
+- when: tsdproxy_service_stat.stat.exists | bool
+  block:
+    - name: Ensure tsdproxy service is stopped
+      ansible.builtin.service:
+        name: "{{ tsdproxy_identifier }}"
+        state: stopped
+        daemon_reload: true
+    - name: Ensure tsdproxy service doesn't exist
+      ansible.builtin.file:
+        dest: "{{ devture_systemd_docker_base_systemd_path }}/{{ tsdproxy_identifier }}.service"
+        state: absent
+
+    - name: Ensure tsdproxy base path is files deleted (make sure to delete node data)
+      ansible.builtin.file:
+        path: "{{ tsdproxy_base_path }}"
+        state: absent

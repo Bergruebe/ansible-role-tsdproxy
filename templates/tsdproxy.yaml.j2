@@ -1,0 +1,25 @@
+defaultproxyprovider: default
+docker:
+  local: # name of the docker provider
+    host: "{{ tsdproxy_docker_endpoint }}" # host of the docker socket or daemon
+    targethostname: 172.31.0.1 # hostname or IP of docker server
+    defaultproxyprovider: default # name of which proxy provider to use
+files: {{ tsdproxy_config_files }}
+tailscale:
+  providers:
+    default: # name of the provider
+      authkey: "{{ tsdproxy_tailscale_authkey }}" # define authkey here
+      authkeyfile: "{{ tsdproxy_tailscale_authkeyfile }}" # use this to load authkey from file. If this is defined, Authkey is ignored
+      controlurl: "{{ tsdproxy_controlurl }}" # use this to override the default control URL
+
+    {{ tsdproxy_additional_providers }}
+  datadir: /data/
+http:
+  hostname: 0.0.0.0
+  port: 8080
+log:
+  level: "{{ tsdproxy_loglevel }}" # set logging level info, error or trace
+  json: false # set to true to enable json logging
+proxyaccesslog: "{{ tsdproxy_proxyaccesslog }}" # set to true to enable container access log
+
+{{ tsdproxy_extra_config }}

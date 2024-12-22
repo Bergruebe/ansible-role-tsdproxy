@@ -1,0 +1,54 @@
+[Unit]
+Description=TSDProxy is a very simple proxy with Tailscale
+{% for service in tsdproxy_systemd_required_services_list %}
+Requires={{ service }}
+After={{ service }}
+{% endfor %}
+{% for service in tsdproxy_systemd_wanted_services_list %}
+Wants={{ service }}
+{% endfor %}
+DefaultDependencies=no
+
+[Service]
+Type=simple
+ExecStartPre=-{{ devture_systemd_docker_base_host_command_sh }} -c '{{ devture_systemd_docker_base_host_command_docker }} stop --time={{ devture_systemd_docker_base_container_stop_grace_time_seconds }} {{ tsdproxy_identifier }} 2>/dev/null || true'
+ExecStartPre=-{{ devture_systemd_docker_base_host_command_sh }} -c '{{ devture_systemd_docker_base_host_command_docker }} rm {{ tsdproxy_identifier }} 2>/dev/null || true'
+
+ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} create \
+                --rm \
+                --name={{ tsdproxy_identifier }} \
+                --log-driver=none \
+                --user={{ tsdproxy_uid }}:{{ tsdproxy_gid }} \
+                --cap-drop=ALL \
+                {% if tsdproxy_container_http_host_bind_port %}
+                -p {{ tsdproxy_container_http_host_bind_port }}:{{ tsdproxy_container_http_port }} \
+                {% endif %}
+                --label-file={{ tsdproxy_base_path }}/labels \
+                --network={{ tsdproxy_container_network }} \
+                {% for mount in tsdproxy_container_additional_mounts %}
+                --mount {{ mount }} \
+                {% endfor %}
+                --mount type=bind,src={{ tsdproxy_data_path }},dst=/data \
+                --mount type=bind,src={{ tsdproxy_config_path }},dst=/config \
+                {% if tsdproxy_docker_endpoint_is_unix_socket %}
+                --privileged \
+                --mount type=bind,src={{ tsdproxy_docker_endpoint | replace('unix://', '') }},dst=/var/run/docker.sock,ro \
+                {% endif %}
+                --tmpfs=/tmp:rw,noexec,nosuid,size=100m \
+                --env-file={{ tsdproxy_base_path }}/env \
+                {{ tsdproxy_container_image }}
+
+{% for network in tsdproxy_container_additional_networks %}
+ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} network connect {{ network }} {{ tsdproxy_identifier }}
+{% endfor %}
+
+ExecStart={{ devture_systemd_docker_base_host_command_docker }} start --attach {{ tsdproxy_identifier }}
+
+ExecStop=-{{ devture_systemd_docker_base_host_command_sh }} -c '{{ devture_systemd_docker_base_host_command_docker }} stop --time={{ devture_systemd_docker_base_container_stop_grace_time_seconds }} {{ tsdproxy_identifier }} 2>/dev/null || true'
+ExecStop=-{{ devture_systemd_docker_base_host_command_sh }} -c '{{ devture_systemd_docker_base_host_command_docker }} rm {{ tsdproxy_identifier }} 2>/dev/null || true'
+Restart=always
+RestartSec=30
+SyslogIdentifier={{ tsdproxy_identifier }}
+
+[Install]
+WantedBy=multi-user.target

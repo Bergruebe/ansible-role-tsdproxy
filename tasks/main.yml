@@ -1,0 +1,20 @@
+---
+
+- name: Validate and install tsdproxy if enabled
+  when: tsdproxy_enabled | bool
+  tags:
+    - setup-all
+    - setup-tsdproxy
+    - install-all
+    - install-tsdproxy
+  block:
+    - ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
+    - ansible.builtin.include_tasks: "{{ role_path }}/tasks/install.yml"
+
+- name: Uninstall tsdproxy if not enabled
+  when: not tsdproxy_enabled | bool
+  tags:
+    - setup-all
+    - setup-tsdproxy
+  block:
+    - ansible.builtin.include_tasks: "{{ role_path }}/tasks/uninstall.yml"

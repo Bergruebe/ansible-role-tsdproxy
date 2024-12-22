@@ -1,0 +1,77 @@
+---
+
+tsdproxy_enabled: true
+tsdproxy_identifier: tsdproxy
+
+
+tsdproxy_uid: ''
+tsdproxy_gid: ''
+
+tsdproxy_base_path: "/{{ tsdproxy_identifier }}"
+tsdproxy_config_path: "{{ tsdproxy_base_path }}/config"
+tsdproxy_data_path: "{{ tsdproxy_base_path }}/data"
+tsdproxy_env_path: "{{ tsdproxy_config_path }}/env"
+
+
+tsdproxy_systemd_required_services_list: "{{ tsdproxy_systemd_required_services_list_default + tsdproxy_systemd_required_services_list_auto + tsdproxy_systemd_required_services_list_custom }}"
+tsdproxy_systemd_required_services_list_default: ['docker.service']
+tsdproxy_systemd_required_services_list_auto: []
+tsdproxy_systemd_required_services_list_custom: []
+
+tsdproxy_systemd_wanted_services_list: "{{ tsdproxy_systemd_wanted_services_list_default + tsdproxy_systemd_wanted_services_list_auto + tsdproxy_systemd_wanted_services_list_custom }}"
+tsdproxy_systemd_wanted_services_list_default: []
+tsdproxy_systemd_wanted_services_list_auto: []
+tsdproxy_systemd_wanted_services_list_custom: []
+
+tsdproxy_container_additional_mounts: []
+
+tsdproxy_version: 1.1.2
+
+# Project source code URL: https://github.com/almeidapaulopt/tsdproxy
+tsdproxy_container_image: "{{ tsdproxy_container_image_registry_prefix }}almeidapaulopt/tsdproxy:{{ tsdproxy_container_image_tag }}"
+tsdproxy_container_image_registry_prefix: docker.io/
+tsdproxy_container_image_tag: "{{ tsdproxy_version }}"
+tsdproxy_container_image_force_pull: "{{ tsdproxy_container_image.endswith(':latest') }}"
+
+tsdproxy_container_network: '{{ tsdproxy_identifier }}'
+
+
+# A list of additional container networks that the container would be connected to.
+# The role does not create these networks, so make sure they already exist.
+# Use this to expose this container to a reverse proxy, which runs in a different container network.
+tsdproxy_container_additional_networks: "{{ tsdproxy_container_additional_networks_auto + tsdproxy_container_additional_networks_custom }}"
+tsdproxy_container_additional_networks_auto: []
+tsdproxy_container_additional_networks_custom: []
+
+tsdproxy_container_http_host_bind_port: ''
+
+
+tsdproxy_docker_endpoint: unix:///var/run/docker.sock
+tsdproxy_docker_endpoint_is_unix_socket: true
+
+tsdproxy_config_files: []
+
+tsdproxy_tailscale_authkey: ''
+tsdproxy_tailscale_authkeyfile: '' # use this to load authkey from file. If this is defined, Authkey is ignored
+tsdproxy_controlurl: 'https://controlplane.tailscale.com' # use this to override the default control URL
+tsdproxy_loglevel: info # set logging level info, error or trace
+tsdproxy_proxyaccesslog: true # set to true to enable container access log
+
+# define additional providers here in following format
+#    tsdproxy_additional_providers: |
+#        provider-name:
+#          authkey: "{{ tsdproxy_tailscale_authkey }}" # define authkey here
+#          authkeyfile: "{{ tsdproxy_tailscale_authkeyfile }}" # use this to load authkey from file. If this is defined, Authkey is ignored
+#          controlurl: "{{ tsdproxy_controlurl }}" # use this to override the default control URL
+tsdproxy_additional_providers: ''
+
+# configuration added to the tsdproxy.yaml file
+tsdproxy_extra_config: ''
+
+# Example:
+# tsdproxy_container_labels_additional_labels: |
+#   my.label=1
+#   another.label="here"
+tsdproxy_container_labels_additional_labels: ''
+
+tsdproxy_environment_variables_extension: ''

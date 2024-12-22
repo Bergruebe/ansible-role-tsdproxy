@@ -1,0 +1,65 @@
+---
+
+- name: Ensure tsdproxy network is created in Docker
+  community.docker.docker_network:
+    name: "{{ tsdproxy_container_network }}"
+    driver: bridge
+
+
+- name: Ensure tsdproxy path exists
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "0700"
+    owner: "{{ tsdproxy_uid }}"
+    group: "{{ tsdproxy_gid }}"
+  with_items:
+    - {path: "{{ tsdproxy_base_path }}", when: true}
+
+
+- name: Ensure tsdproxy data and config path exists
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ tsdproxy_uid }}"
+    group: "{{ tsdproxy_gid }}"
+  with_items:
+    - {path: "{{ tsdproxy_data_path }}", when: true}
+    - {path: "{{ tsdproxy_config_path }}", when: true}
+
+
+- name: Ensure tsdproxy labels are installed
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/labels.j2"
+    dest: "{{ tsdproxy_base_path }}/labels"
+    owner: "{{ tsdproxy_uid }}"
+    group: "{{ tsdproxy_gid }}"
+    mode: "0640"
+
+- name: Ensure tsdproxy environment variables are deployed
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/env.j2"
+    dest: "{{ tsdproxy_base_path }}/env"
+    owner: "{{ tsdproxy_uid }}"
+    group: "{{ tsdproxy_gid }}"
+    mode: "0640"
+
+- name: Ensure tsdproxy config is deployed
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/tsdproxy.yaml.j2"
+    dest: "{{ tsdproxy_config_path }}//tsdproxy.yaml"
+    owner: "{{ tsdproxy_uid }}"
+    group: "{{ tsdproxy_gid }}"
+    mode: "0660"
+
+- name: Ensure tsdproxy container image is pulled
+  community.docker.docker_image:
+    name: "{{ tsdproxy_container_image }}"
+    source: "{{ 'pull' if ansible_version.major > 2 or ansible_version.minor > 7 else omit }}"
+
+- name: Ensure tsdproxy.service installed
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/tsdproxy.service.j2"
+    dest: "{{ devture_systemd_docker_base_systemd_path }}/{{ tsdproxy_identifier }}.service"
+    mode: "0644"
