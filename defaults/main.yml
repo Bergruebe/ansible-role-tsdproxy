@@ -49,7 +49,7 @@ tsdproxy_container_http_host_bind_port: ''
 tsdproxy_docker_endpoint: unix:///var/run/docker.sock
 tsdproxy_docker_endpoint_is_unix_socket: true
 
-tsdproxy_config_files: []
+tsdproxy_config_files: {}
 
 tsdproxy_tailscale_authkey: ''
 tsdproxy_tailscale_authkeyfile: '' # use this to load authkey from file. If this is defined, Authkey is ignored
