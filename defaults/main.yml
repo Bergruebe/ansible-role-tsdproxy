@@ -25,7 +25,7 @@ tsdproxy_systemd_wanted_services_list_custom: []
 
 tsdproxy_container_additional_mounts: []
 
-tsdproxy_version: 1.2.0
+tsdproxy_version: 1.4.4
 
 # Project source code URL: https://github.com/almeidapaulopt/tsdproxy
 tsdproxy_container_image: "{{ tsdproxy_container_image_registry_prefix }}almeidapaulopt/tsdproxy:{{ tsdproxy_container_image_tag }}"
