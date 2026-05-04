@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2024 Bergrübe
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
 # ansible-role-tsdproxy
 Integrate TSDProdx into the [MASH-Playbook](https://github.com/mother-of-all-self-hosting/mash-playbook), to proxy services into your [Tailscale](https://tailscale.com) network.
 
