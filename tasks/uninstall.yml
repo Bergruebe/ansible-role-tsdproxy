@@ -5,7 +5,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 ---
-
 - name: Check existence of TSDProxy systemd service
   ansible.builtin.stat:
     path: "{{ devture_systemd_docker_base_systemd_path }}/{{ tsdproxy_identifier }}.service"
@@ -14,17 +13,38 @@
 - name: Uninstall TSDProxy systemd services and files
   when: tsdproxy_service_stat.stat.exists | bool
   block:
-    - name: Ensure TSDProxy service is stopped
+    - name: Ensure TSDProxy systemd service is stopped
       ansible.builtin.service:
         name: "{{ tsdproxy_identifier }}"
         state: stopped
+        enabled: false
         daemon_reload: true
-    - name: Ensure TSDProxy service doesn't exist
+
+    - name: Ensure TSDProxy systemd service does not exist
       ansible.builtin.file:
-        dest: "{{ devture_systemd_docker_base_systemd_path }}/{{ tsdproxy_identifier }}.service"
+        path: "{{ devture_systemd_docker_base_systemd_path }}/{{ tsdproxy_identifier }}.service"
         state: absent
 
-    - name: Ensure TSDProxy base path is files deleted (make sure to delete node data)
+    - name: Ensure TSDProxy container network does not exist
+      when: tsdproxy_container_network_deletion_enabled
+      block:
+        - name: Ensure TSDProxy container network does not exist via community.docker.docker_network
+          when: devture_systemd_docker_base_container_network_creation_method == 'ansible-module'
+          community.docker.docker_network:
+            name: "{{ tsdproxy_container_network }}"
+            state: absent
+          register: tsdproxy_network_deletion_result
+
+        - name: Ensure TSDProxy container network does not exist via ansible.builtin.command
+          when: devture_systemd_docker_base_container_network_creation_method == 'command'
+          ansible.builtin.command:
+            cmd: >-
+              {{ devture_systemd_docker_base_host_command_docker }} network rm
+              {{ tsdproxy_container_network }}
+          register: tsdproxy_network_deletion_result
+          changed_when: tsdproxy_container_network in tsdproxy_network_deletion_result.stdout
+
+    - name: Ensure TSDProxy path does not exist
       ansible.builtin.file:
         path: "{{ tsdproxy_base_path }}"
         state: absent
