@@ -8,10 +8,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 ---
+# Project source code URL: https://github.com/almeidapaulopt/tsdproxy
 
 tsdproxy_enabled: true
 tsdproxy_identifier: tsdproxy
 
+# renovate: datasource=docker depName=almeidapaulopt/tsdproxy
+tsdproxy_version: 1.4.7
 
 tsdproxy_uid: ''
 tsdproxy_gid: ''
@@ -34,9 +37,6 @@ tsdproxy_systemd_wanted_services_list_custom: []
 
 tsdproxy_container_additional_mounts: []
 
-tsdproxy_version: 1.4.7
-
-# Project source code URL: https://github.com/almeidapaulopt/tsdproxy
 tsdproxy_container_image: "{{ tsdproxy_container_image_registry_prefix }}almeidapaulopt/tsdproxy:{{ tsdproxy_container_image_tag }}"
 tsdproxy_container_image_registry_prefix: docker.io/
 tsdproxy_container_image_tag: "{{ tsdproxy_version }}"
