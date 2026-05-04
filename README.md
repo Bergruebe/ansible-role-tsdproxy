@@ -1,12 +1,25 @@
 <!--
+SPDX-FileCopyrightText: 2023 Slavi Pantaleev
 SPDX-FileCopyrightText: 2024 Bergrübe
+SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
 
 SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 
-# ansible-role-tsdproxy
+# TSDProxy Ansible role
 
-Integrate TSDProdx into the [MASH-Playbook](https://github.com/mother-of-all-self-hosting/mash-playbook), to proxy services into your [Tailscale](https://tailscale.com) network.
+This is an [Ansible](https://www.ansible.com/) role which installs [TSDProxy](https://almeidapaulopt.github.io/tsdproxy/) to run as a [Docker](https://www.docker.com/) container wrapped in a systemd service.
+
+This role *implicitly* depends on:
+
+- [`com.devture.ansible.role.playbook_help`](https://github.com/devture/com.devture.ansible.role.playbook_help)
+- [`com.devture.ansible.role.systemd_docker_base`](https://github.com/devture/com.devture.ansible.role.systemd_docker_base)
+
+Check [`defaults/main.yml`](defaults/main.yml) for the full list of supported options.
+
+💡 For an Ansible playbook which integrates this role and makes it easier to use, see the [Mother-of-All-Self-Hosting Ansible playbook](https://github.com/mother-of-all-self-hosting/mash-playbook/).
+
+## Usage
 
 It is mandatory to set following variables:
 
@@ -21,7 +34,7 @@ If [com.devture.ansible.role.container_socket_proxy](https://github.com/devture/
 
 If not, the container will mount the docker socket at `/var/run/docker.sock`, but you can change that by setting `tsdproxy_docker_socket` to something else. Don't forget to adjust the `tsdproxy_docker_endpoint_is_unix_socket` to false if you are using a tcp endpoint.
 
-## Add a new Service
+### Add a new Service
 
 This proxy creates for each service a own machine in the Tailscale network, without creating each time a sidecar container. To add a new service, you have to make sure that the service and proxy are in a same docker network. You can do this by adding the proxy to the network of the service or the otTSDProxyher way round.
 
@@ -35,7 +48,7 @@ YOUR-SERVICE_container_additional_networks_custom:
 
 The next step is to add the service to the proxy.
 
-### Via docker labels
+#### Via docker labels
 
 ```yaml
 YOUR-SERVICE_container_labels_additional_labels: |
@@ -53,7 +66,7 @@ Following labels are optional, please read the [official TSDProxy documentation]
   tsdproxy.funnel: "false"
 ```
 
-### Via Proxy list
+#### Via Proxy list
 
 An alternative way to add a service to the proxy is to use Proxy files. Please read the [official TSDProxy documentation](https://almeidapaulopt.github.io/tsdproxy/docs/files/) for more information.
 
