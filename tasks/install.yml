@@ -1,71 +1,100 @@
+# SPDX-FileCopyrightText: 2023-2025 Slavi Pantaleev
 # SPDX-FileCopyrightText: 2024 Bergrübe
+# SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 ---
-
-- name: Ensure TSDProxy network is created in Docker
-  community.docker.docker_network:
-    enable_ipv6: "{{ devture_systemd_docker_base_ipv6_enabled }}"
-    name: "{{ tsdproxy_container_network }}"
-    driver: bridge
-    driver_options: "{{ devture_systemd_docker_base_container_networks_driver_options }}"
-
-
-- name: Ensure TSDProxy path exists
+- name: Ensure TSDProxy paths exist
   ansible.builtin.file:
-    path: "{{ item.path }}"
+    path: "{{ item }}"
     state: directory
-    mode: "0700"
+    mode: "0750"
     owner: "{{ tsdproxy_uid }}"
     group: "{{ tsdproxy_gid }}"
   with_items:
-    - {path: "{{ tsdproxy_base_path }}", when: true}
+    - "{{ tsdproxy_base_path }}"
+    - "{{ tsdproxy_config_path }}"
+    - "{{ tsdproxy_data_path }}"
 
-
-- name: Ensure TSDProxy data and config path exists
-  ansible.builtin.file:
-    path: "{{ item.path }}"
-    state: directory
-    mode: "0755"
+- name: Ensure TSDProxy support files installed
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/{{ item }}.j2"
+    dest: "{{ tsdproxy_base_path }}/{{ item }}"
+    mode: "0640"
     owner: "{{ tsdproxy_uid }}"
     group: "{{ tsdproxy_gid }}"
   with_items:
-    - {path: "{{ tsdproxy_data_path }}", when: true}
-    - {path: "{{ tsdproxy_config_path }}", when: true}
+    - env
+    - labels
+  register: tsdproxy_support_files_result
 
-
-- name: Ensure TSDProxy labels are installed
-  ansible.builtin.template:
-    src: "{{ role_path }}/templates/labels.j2"
-    dest: "{{ tsdproxy_base_path }}/labels"
-    owner: "{{ tsdproxy_uid }}"
-    group: "{{ tsdproxy_gid }}"
-    mode: "0640"
-
-- name: Ensure TSDProxy environment variables are deployed
-  ansible.builtin.template:
-    src: "{{ role_path }}/templates/env.j2"
-    dest: "{{ tsdproxy_base_path }}/env"
-    owner: "{{ tsdproxy_uid }}"
-    group: "{{ tsdproxy_gid }}"
-    mode: "0640"
-
-- name: Ensure TSDProxy config is deployed
+- name: Ensure TSDProxy configuration file installed
   ansible.builtin.template:
     src: "{{ role_path }}/templates/tsdproxy.yaml.j2"
     dest: "{{ tsdproxy_config_path }}//tsdproxy.yaml"
     owner: "{{ tsdproxy_uid }}"
     group: "{{ tsdproxy_gid }}"
     mode: "0660"
+  register: tsdproxy_config_file_result
 
-- name: Ensure TSDProxy container image is pulled
+- name: Ensure TSDProxy container image is pulled via community.docker.docker_image
+  when: devture_systemd_docker_base_container_image_pull_method == 'ansible-module'
   community.docker.docker_image:
     name: "{{ tsdproxy_container_image }}"
     source: "{{ 'pull' if ansible_version.major > 2 or ansible_version.minor > 7 else omit }}"
+    force_source: "{{ tsdproxy_container_image_force_pull if ansible_version.major > 2 or ansible_version.minor >= 8 else omit }}"
+    force: "{{ omit if ansible_version.major > 2 or ansible_version.minor >= 8 else tsdproxy_container_image_force_pull }}"
+  register: tsdproxy_container_image_pull_result_ansible_module
+  retries: "{{ devture_playbook_help_container_retries_count }}"
+  delay: "{{ devture_playbook_help_container_retries_delay }}"
+  until: tsdproxy_container_image_pull_result_ansible_module is not failed
 
-- name: Ensure tsdproxy.service installed
+- name: Ensure TSDProxy container image is pulled via ansible.builtin.command
+  when: devture_systemd_docker_base_container_image_pull_method == 'command'
+  ansible.builtin.command:
+    cmd: "{{ devture_systemd_docker_base_host_command_docker }} pull {{ tsdproxy_container_image }}"
+  register: tsdproxy_container_image_pull_result_command
+  retries: "{{ devture_playbook_help_container_retries_count }}"
+  delay: "{{ devture_playbook_help_container_retries_delay }}"
+  until: tsdproxy_container_image_pull_result_command is not failed
+  changed_when: "'Downloaded newer image' in tsdproxy_container_image_pull_result_command.stdout"
+
+- name: Ensure TSDProxy container network is created via community.docker.docker_network
+  when: devture_systemd_docker_base_container_network_creation_method == 'ansible-module'
+  community.docker.docker_network:
+    enable_ipv6: "{{ devture_systemd_docker_base_ipv6_enabled }}"
+    name: "{{ tsdproxy_container_network }}"
+    driver: bridge
+    driver_options: "{{ devture_systemd_docker_base_container_networks_driver_options }}"
+  register: tsdproxy_network_creation_result
+
+- name: Ensure TSDProxy container network is created via ansible.builtin.command
+  when: devture_systemd_docker_base_container_network_creation_method == 'command'
+  ansible.builtin.command:
+    cmd: >-
+      {{ devture_systemd_docker_base_host_command_docker }} network create
+      {% if devture_systemd_docker_base_ipv6_enabled %}--ipv6{% endif %}
+      {{ devture_systemd_docker_base_container_networks_driver_options_string }}
+      {{ tsdproxy_container_network }}
+  register: tsdproxy_network_creation_result
+  changed_when: tsdproxy_network_creation_result.rc == 0
+  failed_when: tsdproxy_network_creation_result.rc != 0 and 'already exists' not in tsdproxy_network_creation_result.stderr
+
+- name: Ensure TSDProxy systemd service is present
   ansible.builtin.template:
-    src: "{{ role_path }}/templates/tsdproxy.service.j2"
+    src: "{{ role_path }}/templates/systemd/tsdproxy.service.j2"
     dest: "{{ devture_systemd_docker_base_systemd_path }}/{{ tsdproxy_identifier }}.service"
     mode: "0644"
+  register: tsdproxy_systemd_service_result
+
+- name: Determine whether TSDProxy needs a restart
+  ansible.builtin.set_fact:
+    tsdproxy_restart_necessary: >-
+      {{
+        tsdproxy_support_files_result.changed | default(false)
+        or tsdproxy_config_file_result.changed | default(false)
+        or tsdproxy_systemd_service_result.changed | default(false)
+        or tsdproxy_container_image_pull_result_ansible_module.changed | default(false)
+        or tsdproxy_container_image_pull_result_command.changed | default(false)
+      }}
