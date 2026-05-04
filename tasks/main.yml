@@ -1,10 +1,11 @@
+# SPDX-FileCopyrightText: 2023 Slavi Pantaleev
 # SPDX-FileCopyrightText: 2024 Bergrübe
+# SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 ---
-
-- name: Validate and install tsdproxy if enabled
+- name: Perform TSDProxy installation tasks
   when: tsdproxy_enabled | bool
   tags:
     - setup-all
@@ -12,13 +13,16 @@
     - install-all
     - install-tsdproxy
   block:
-    - ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
-    - ansible.builtin.include_tasks: "{{ role_path }}/tasks/install.yml"
+    - name: Validate TSDProxy configuration
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
+    - name: Install TSDProxy
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/install.yml"
 
-- name: Uninstall tsdproxy if not enabled
+- name: Perform TSDProxy uninstallation tasks
   when: not tsdproxy_enabled | bool
   tags:
     - setup-all
     - setup-tsdproxy
   block:
-    - ansible.builtin.include_tasks: "{{ role_path }}/tasks/uninstall.yml"
+    - name: Uninstall TSDProxy
+      ansible.builtin.include_tasks: "{{ role_path }}/tasks/uninstall.yml"

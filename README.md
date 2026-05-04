@@ -5,6 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 
 # ansible-role-tsdproxy
+
 Integrate TSDProdx into the [MASH-Playbook](https://github.com/mother-of-all-self-hosting/mash-playbook), to proxy services into your [Tailscale](https://tailscale.com) network.
 
 It is mandatory to set following variables:
@@ -13,13 +14,17 @@ It is mandatory to set following variables:
 tsdproxy_tailscale_authkey: '' # OR
 tsdproxy_tailscale_authkeyfile: '' # use this to load authkey from file. If this is defined, Authkey is ignored
 ```
+
 By default, the container will mount the docker socket at `/var/run/docker.sock`, but you can change that by setting `tsdproxy_docker_socket` to something else. Don't forget to adjust the `tsdproxy_docker_endpoint_is_unix_socket` to false, if you are using a tcp endpoint.
+
 If [com.devture.ansible.role.container_socket_proxy](https://github.com/devture/com.devture.ansible.role.container_socket_proxy) is installed by the playbook (default), the container will use the proxy.
+
 If not, the container will mount the docker socket at `/var/run/docker.sock`, but you can change that by setting `tsdproxy_docker_socket` to something else. Don't forget to adjust the `tsdproxy_docker_endpoint_is_unix_socket` to false if you are using a tcp endpoint.
 
 ## Add a new Service
-This proxy creates for each service a own machine in the Tailscale network, without creating each time a sidecar container.
-To add a new service, you have to make sure that the service and proxy are in a same docker network. You can do this by adding the proxy to the network of the service or the other way round.
+
+This proxy creates for each service a own machine in the Tailscale network, without creating each time a sidecar container. To add a new service, you have to make sure that the service and proxy are in a same docker network. You can do this by adding the proxy to the network of the service or the otTSDProxyher way round.
+
 ```yaml
 tsdproxy_container_additional_networks_custom:
   - YOUR-SERVICE-NETWORK
@@ -29,26 +34,37 @@ YOUR-SERVICE_container_additional_networks_custom:
 ```
 
 The next step is to add the service to the proxy.
+
 ### Via docker labels
+
 ```yaml
 YOUR-SERVICE_container_labels_additional_labels: |
-	tsdproxy.enable: "true"
-	tsdproxy.container_port: 8080
+  tsdproxy.enable: "true"
+  tsdproxy.container_port: 8080
 ```
+
 Following labels are optional, please read the [official TSDProxy documentation](https://almeidapaulopt.github.io/tsdproxy/docs/docker/) for more information.
+
 ```yaml
-	tsdproxy.name: "my-service"
-	tsdproxy.autodetect: "false"
-	tsdproxy.proxyprovider: "providername"
-	tsdproxy.ephemeral: "false"
-	tsdproxy.funnel: "false"
+  tsdproxy.name: "my-service"
+  tsdproxy.autodetect: "false"
+  tsdproxy.proxyprovider: "providername"
+  tsdproxy.ephemeral: "false"
+  tsdproxy.funnel: "false"
 ```
 
 ### Via Proxy list
-An alternative way to add a service to the proxy is to use Proxy files.
-Please read the [official TSDProxy documentation](https://almeidapaulopt.github.io/tsdproxy/docs/files/) for more information.
-You will need to use the `tsdproxy_config_files` variable and add your proxy list file into the config folder, most likely `/mash/tsdproxy/config/`.
-This is possible manually or by using [AUX-Files](https://github.com/mother-of-all-self-hosting/mash-playbook/blob/main/docs/services/auxiliary.md).
 
-# Contributing
-If you find a bug or have an idea for improvement, feel free to open a Pull Request or Issue.
+An alternative way to add a service to the proxy is to use Proxy files. Please read the [official TSDProxy documentation](https://almeidapaulopt.github.io/tsdproxy/docs/files/) for more information.
+
+You will need to use the `tsdproxy_config_files` variable and add your proxy list file into the config folder, most likely `/mash/tsdproxy/config/`. This is possible manually or by using [AUX-Files](https://github.com/mother-of-all-self-hosting/mash-playbook/blob/main/docs/services/auxiliary.md).
+
+## Development
+
+You can optionally install a Git pre-commit hook (via [mise](https://mise.jdx.dev/) + [prek](https://prek.j178.dev/)) that runs formatting and linting checks before each commit. See [`.pre-commit-config.yaml`](./.pre-commit-config.yaml) for which hooks are to be executed.
+
+To install the hook, run the [`just`](https://github.com/casey/just) command below:
+
+```sh
+just prek-install-git-pre-commit-hook
+```
