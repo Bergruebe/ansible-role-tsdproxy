@@ -40,7 +40,6 @@ tsdproxy_container_additional_mounts: []
 tsdproxy_container_image: "{{ tsdproxy_container_image_registry_prefix }}almeidapaulopt/tsdproxy:{{ tsdproxy_container_image_tag }}"
 tsdproxy_container_image_registry_prefix: docker.io/
 tsdproxy_container_image_tag: "{{ tsdproxy_version }}"
-tsdproxy_container_image_force_pull: "{{ tsdproxy_container_image.endswith(':latest') }}"
 
 tsdproxy_container_network: '{{ tsdproxy_identifier }}'
 
