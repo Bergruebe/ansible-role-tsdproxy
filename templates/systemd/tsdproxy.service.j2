@@ -40,6 +40,9 @@ ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} create \
                 --privileged \
                 --mount type=bind,src={{ tsdproxy_docker_endpoint | replace('unix://', '') }},dst=/var/run/docker.sock,ro \
                 {% endif %}
+                {% if tsdproxy_docker_target_hostname == 'host.docker.internal' %}
+                --add-host=host.docker.internal:host-gateway \
+                {% endif %}
                 --tmpfs=/tmp:rw,noexec,nosuid,size=100m \
                 --env-file={{ tsdproxy_base_path }}/env \
                 {{ tsdproxy_container_image }}

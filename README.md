@@ -21,22 +21,32 @@ Check [`defaults/main.yml`](defaults/main.yml) for the full list of supported op
 
 ## Usage
 
-It is mandatory to set following variables:
+At least one authentication method should be configured:
 
 ```yaml
-tsdproxy_tailscale_authkey: '' # OR
-tsdproxy_tailscale_authkeyfile: '' # use this to load authkey from file. If this is defined, Authkey is ignored
+# AuthKey-based auth
+tsdproxy_tailscale_authkey: "" # OR
+tsdproxy_tailscale_authkeyfile: "" # if set, authkey is ignored
+
+# OAuth-based auth
+tsdproxy_tailscale_clientid: ""
+tsdproxy_tailscale_clientsecret: ""
 ```
 
-By default, the container will mount the docker socket at `/var/run/docker.sock`, but you can change that by setting `tsdproxy_docker_socket` to something else. Don't forget to adjust the `tsdproxy_docker_endpoint_is_unix_socket` to false, if you are using a tcp endpoint.
+The role mounts the Docker socket by default and uses `tsdproxy_docker_endpoint: unix:///var/run/docker.sock`.
+By usage of the **MASH-Playbook** with [com.devture.ansible.role.container_socket_proxy](https://github.com/devture/com.devture.ansible.role.container_socket_proxy) (default), the container will use the proxy. 
+If you use a TCP endpoint, set:
 
-If [com.devture.ansible.role.container_socket_proxy](https://github.com/devture/com.devture.ansible.role.container_socket_proxy) is installed by the playbook (default), the container will use the proxy.
-
-If not, the container will mount the docker socket at `/var/run/docker.sock`, but you can change that by setting `tsdproxy_docker_socket` to something else. Don't forget to adjust the `tsdproxy_docker_endpoint_is_unix_socket` to false if you are using a tcp endpoint.
+```yaml
+tsdproxy_docker_endpoint: "tcp://DOCKER_HOST:2376"
+tsdproxy_docker_endpoint_is_unix_socket: false
+```
 
 ### Add a new Service
 
-This proxy creates for each service a own machine in the Tailscale network, without creating each time a sidecar container. To add a new service, you have to make sure that the service and proxy are in a same docker network. You can do this by adding the proxy to the network of the service or the otTSDProxyher way round.
+TSDProxy creates one Tailscale node per service, without a per-service sidecar.
+To expose a service, TSDProxy and the service must be able to reach each other over Docker networking.
+Usually, both containers should share at least one network:
 
 ```yaml
 tsdproxy_container_additional_networks_custom:
@@ -46,31 +56,75 @@ YOUR-SERVICE_container_additional_networks_custom:
   - "{{ tsdproxy_container_network }}"
 ```
 
-The next step is to add the service to the proxy.
+If you proxy via Docker host published ports instead of a shared network, set:
 
-#### Via docker labels
+```yaml
+tsdproxy_docker_target_hostname: host.docker.internal
+```
 
+The role will automatically add `--add-host=host.docker.internal:host-gateway` to the TSDProxy container in this mode.
+
+Then add labels to the target service.
+
+#### Via Docker labels (v2)
+See the official [documentation](https://almeidapaulopt.github.io/tsdproxy/docs/providers/docker-reference/) for more details.
 ```yaml
 YOUR-SERVICE_container_labels_additional_labels: |
   tsdproxy.enable: "true"
-  tsdproxy.container_port: 8080
+  tsdproxy.port.1: "443/https:8080/http"
 ```
 
-Following labels are optional, please read the [official TSDProxy documentation](https://almeidapaulopt.github.io/tsdproxy/docs/docker/) for more information.
+Optional labels:
 
 ```yaml
   tsdproxy.name: "my-service"
   tsdproxy.autodetect: "false"
   tsdproxy.proxyprovider: "providername"
   tsdproxy.ephemeral: "false"
-  tsdproxy.funnel: "false"
+  tsdproxy.port.2: "80/http->https://my-service.example.ts.net"
+  tsdproxy.port.3: "8443/https:8443/https, no_tlsvalidate"
+  tsdproxy.port.4: "443/https:8080/http, tailscale_funnel"
 ```
 
-#### Via Proxy list
+Deprecated v1 labels (`tsdproxy.container_port`, `tsdproxy.scheme`, `tsdproxy.tlsvalidate`, `tsdproxy.funnel`) should not be used anymore.
 
-An alternative way to add a service to the proxy is to use Proxy files. Please read the [official TSDProxy documentation](https://almeidapaulopt.github.io/tsdproxy/docs/files/) for more information.
+#### Via Lists provider (v2)
 
-You will need to use the `tsdproxy_config_files` variable and add your proxy list file into the config folder, most likely `/mash/tsdproxy/config/`. This is possible manually or by using [AUX-Files](https://github.com/mother-of-all-self-hosting/mash-playbook/blob/main/docs/services/auxiliary.md).
+Configure lists in `tsdproxy.yaml` via `tsdproxy_config_lists`:
+
+```yaml
+tsdproxy_config_lists:
+  critical:
+    filename: /config/critical.yaml
+    defaultProxyProvider: default
+    defaultProxyAccessLog: true
+```
+
+Example `critical.yaml`:
+
+```yaml
+nas:
+  ports:
+    443/https:
+      targets:
+        - http://192.168.1.10:5001
+
+redirect-home:
+  ports:
+    80/http:
+      targets:
+        - https://example.com
+      isRedirect: true
+```
+
+The old role variable `tsdproxy_config_files` is still accepted as a backward-compatible alias to `tsdproxy_config_lists`, but new setups should use `tsdproxy_config_lists`.
+
+For details, see the official v2 docs:
+
+- [Getting Started](https://almeidapaulopt.github.io/tsdproxy/docs/getting-started/)
+- [Docker Labels Reference](https://almeidapaulopt.github.io/tsdproxy/docs/providers/docker-reference/)
+- [Lists](https://almeidapaulopt.github.io/tsdproxy/docs/providers/lists/)
+- [Changelog](https://almeidapaulopt.github.io/tsdproxy/docs/changelog/)
 
 ## Development
 

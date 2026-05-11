@@ -14,6 +14,29 @@
   with_items:
     - { "old": "tsdproxy_container_image_force_pull", "new": "<removed> (the new community.docker.docker_image_pull module handles this natively)" }
 
+- name: (Deprecation) Fail when legacy v1 config keys are used in extension YAML
+  ansible.builtin.fail:
+    msg: >-
+      Your `tsdproxy_configuration_extension_yaml` contains a legacy v1 key (`{{ item.old }}`).
+      Please use the v2 key (`{{ item.new }}`) instead.
+  when: "item.old in tsdproxy_configuration_extension_yaml"
+  with_items:
+    - { "old": "defaultproxyprovider:", "new": "defaultProxyProvider:" }
+    - { "old": "targethostname:", "new": "targetHostname:" }
+    - { "old": "files:", "new": "lists:" }
+    - { "old": "authkey:", "new": "authKey:" }
+    - { "old": "authkeyfile:", "new": "authKeyFile:" }
+    - { "old": "controlurl:", "new": "controlUrl:" }
+    - { "old": "datadir:", "new": "dataDir:" }
+    - { "old": "proxyaccesslog:", "new": "proxyAccessLog:" }
+
+- name: Ensure TSDProxy list providers are a mapping
+  ansible.builtin.fail:
+    msg: >-
+      `tsdproxy_config_lists` must be a mapping (dictionary),
+      for example: {critical: {filename: /config/critical.yaml}}
+  when: "tsdproxy_config_lists is not mapping"
+
 - name: Fail if required TSDProxy settings not defined
   ansible.builtin.fail:
     msg: >-
