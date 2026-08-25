@@ -1,5 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "No //patch-automerge here: upstream's 1.x line ended at 1.4.7, so the only update Renovate can offer is a major one, and Molecule stops short of Tailscale node registration, which is what TSDProxy exists to do. See molecule/README.md.",
   "extends": [
     "github>mother-of-all-self-hosting/renovate-config#v1.0.0"
   ]
