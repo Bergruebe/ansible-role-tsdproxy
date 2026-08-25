@@ -29,14 +29,32 @@
     - labels
   register: tsdproxy_support_files_result
 
+# TSDProxy reads its configuration from `/config/tsdproxy.yaml` - that is the
+# default value of its `-config` flag, and this role passes no arguments to it.
+# `/config` is where `tsdproxy_config_path` gets mounted.
+#
+# When that file is missing, TSDProxy generates a default one there and runs
+# with it. That generated default is nearly identical to what this role renders,
+# which is why writing the file to `tsdproxy_data_path` (mounted at `/data`)
+# used to look like it worked: TSDProxy quietly ran on its own defaults and
+# every setting this role offers - the Tailscale authkey included - had no
+# effect at all.
 - name: Ensure TSDProxy configuration file installed
   ansible.builtin.copy:
     content: "{{ tsdproxy_configuration | to_nice_yaml(indent=2, width=999999) }}"
-    dest: "{{ tsdproxy_data_path }}/tsdproxy.yaml"
+    dest: "{{ tsdproxy_config_path }}/tsdproxy.yaml"
     mode: "0660"
     owner: "{{ tsdproxy_uid }}"
     group: "{{ tsdproxy_gid }}"
   register: tsdproxy_config_file_result
+
+# Left behind by role versions which wrote the configuration file to the data
+# path, where TSDProxy never looked for it. Keeping it would only invite
+# editing the copy that does nothing.
+- name: Ensure stale TSDProxy configuration file in the data path is deleted
+  ansible.builtin.file:
+    path: "{{ tsdproxy_data_path }}/tsdproxy.yaml"
+    state: absent
 
 - name: Ensure TSDProxy container image is pulled via community.docker.docker_image_pull
   when: devture_systemd_docker_base_container_image_pull_method == 'ansible-module'
