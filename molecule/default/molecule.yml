@@ -1,0 +1,104 @@
+# SPDX-FileCopyrightText: 2026 Slavi Pantaleev
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+    force: true
+driver:
+  name: docker
+platforms:
+  - name: tsdproxy-${MOLECULE_DISTRO:-ubuntu2604}-default
+    image: "geerlingguy/docker-${MOLECULE_DISTRO:-ubuntu2604}-ansible:latest"
+    command: ${MOLECULE_DOCKER_COMMAND:-""}
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      callback_result_format: yaml
+  inventory:
+    group_vars:
+      all:
+        # Every value below is deliberately different from both the role's own
+        # default AND from the configuration TSDProxy generates for itself when
+        # it finds no configuration file. The two are near-identical - TSDProxy's
+        # generated default is what templates/tsdproxy.yaml.j2 was originally
+        # copied from - so a scenario that used the role's defaults could not
+        # tell a running TSDProxy that read the role's file apart from one that
+        # ignored it and fell back to its own.
+
+        # Role default: info. TSDProxy's own fallback: info.
+        tsdproxy_loglevel: trace
+
+        # Role default: true. TSDProxy's own fallback: true.
+        tsdproxy_proxyaccesslog: false
+
+        # Role default: 8080. TSDProxy's own fallback: 8080.
+        #
+        # This also exercises tsdproxy_container_http_host_bind_port, whose
+        # rendering used to fail outright on an undefined variable.
+        tsdproxy_container_http_port: 8099
+        tsdproxy_molecule_http_host_bind_port: 18099
+        tsdproxy_container_http_host_bind_port: "127.0.0.1:{{ tsdproxy_molecule_http_host_bind_port }}"
+
+        # TSDProxy reads this file at startup and refuses to start when it
+        # cannot, so a green run proves three things at once: the configuration
+        # file reached the process, this setting inside it was honoured, and
+        # tsdproxy_container_additional_mounts (which is what puts the file
+        # inside the container) is not inert.
+        #
+        # The key itself is fake. It is never used, because nothing in this
+        # scenario carries the `tsdproxy.enable=true` label that would make
+        # TSDProxy try to register a Tailscale node with it. See molecule/README.md.
+        tsdproxy_molecule_authkey_host_path: /var/lib/tsdproxy-molecule/authkey
+        tsdproxy_molecule_authkey_container_path: /molecule-authkey
+        tsdproxy_tailscale_authkeyfile: "{{ tsdproxy_molecule_authkey_container_path }}"
+        tsdproxy_container_additional_mounts:
+          - "type=bind,src={{ tsdproxy_molecule_authkey_host_path }},dst={{ tsdproxy_molecule_authkey_container_path }},ro"
+
+        # Exercises tsdproxy_configuration_extension_yaml, the documented way of
+        # overriding parts of the rendered configuration. `log.json` is hardcoded
+        # to false in the role's template and defaults to false in TSDProxy, so
+        # log lines arriving as JSON can only be the result of this extension
+        # surviving all the way into the running process.
+        tsdproxy_configuration_extension_yaml: |
+          log:
+            json: true
+          docker:
+            local:
+              targethostname: 10.99.0.7
+
+        # Written to a separate file (`labels`) and handed to Docker with
+        # `--label-file`, so it is checked against the container's real labels.
+        tsdproxy_container_labels_additional_labels: |
+          com.molecule.tsdproxy.marker=hello-from-molecule
+
+        # Written to a separate file (`env`) and handed to Docker with
+        # `--env-file`. TSDProxy itself reads no environment variables at all
+        # (it has no viper/envconfig layer - only the `-config` flag and the
+        # YAML file), so this checks the plumbing, not the application.
+        tsdproxy_molecule_env_marker: hello-from-molecule-env
+        tsdproxy_environment_variables_extension: |
+          TSDPROXY_MOLECULE_MARKER={{ tsdproxy_molecule_env_marker }}
+
+        tsdproxy_uid: 1000
+
+        # TSDProxy talks to the Docker daemon over the bind-mounted socket as
+        # this uid:gid. The socket is root:docker 0660, so the group has to be
+        # the one that owns the socket - `--privileged` does NOT help here,
+        # because a non-root uid gets no effective capabilities from it.
+        # Resolved by the `getent` task that opens converge.yml and verify.yml.
+        tsdproxy_gid: "{{ ansible_facts['getent_group']['docker'][1] }}"
+  env:
+    # Workaround for https://github.com/ansible/molecule/issues/4391
+    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/..:/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:~/.ansible/roles
+verifier:
+  name: ansible

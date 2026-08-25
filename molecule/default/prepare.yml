@@ -1,0 +1,77 @@
+# SPDX-FileCopyrightText: 2026 Slavi Pantaleev
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+- name: Prepare TSDProxy Molecule tests
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Ensure apt cache is updated for TSDProxy Molecule tests preparation
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 600
+      when: ansible_facts["os_family"] == 'Debian'
+
+    - name: Ensure required packages are installed for TSDProxy Molecule tests preparation
+      ansible.builtin.package:
+        name:
+          # Used by the `ansible.builtin.uri` calls in verify.yml.
+          # The geerlingguy images ship python3 but no curl.
+          - python3-requests
+          # The storage driver Docker is configured with below. `overlay2` cannot
+          # be nested inside the container Molecule runs these tests in, and
+          # `vfs` (the usual fallback) has no copy-on-write, so it writes out
+          # every layer of every image in full.
+          - fuse-overlayfs
+        state: present
+
+    - name: Ensure Docker is installed for TSDProxy Molecule tests preparation
+      ansible.builtin.include_role:
+        name: ansible-role-docker
+      vars:
+        docker_daemon_options:
+          storage-driver: fuse-overlayfs
+
+    # A stand-in for the Tailscale pre-authentication key that a real
+    # deployment would point `tsdproxy_tailscale_authkeyfile` at. TSDProxy reads
+    # the file during configuration loading and exits if it cannot, which is
+    # what makes it useful here - see molecule.yml.
+    #
+    # World-readable on purpose: it is a fake key, and the point is that the
+    # container's uid can read it once the bind mount lands, not that the file
+    # is protected.
+    - name: Ensure the directory for the TSDProxy Molecule authkey file exists
+      ansible.builtin.file:
+        path: "{{ tsdproxy_molecule_authkey_host_path | dirname }}"
+        state: directory
+        mode: "0755"
+
+    - name: Ensure the TSDProxy Molecule authkey file exists
+      ansible.builtin.copy:
+        content: "tskey-auth-MOLECULEFAKE-notarealkey"
+        dest: "{{ tsdproxy_molecule_authkey_host_path }}"
+        mode: "0644"
+
+    # The scenario has to prove that the role's configuration file is the one
+    # TSDProxy reads. A file left at the path the role used to write to makes
+    # that harder to fake: if the role ever went back to writing there, this
+    # decoy would be overwritten (and verify.yml would notice), and it also
+    # stands in for the leftover that an upgrade from an older role version
+    # finds on disk, which tasks/install.yml is supposed to remove.
+    - name: Ensure the TSDProxy data path exists for the decoy configuration file
+      ansible.builtin.file:
+        path: /tsdproxy/data
+        state: directory
+        mode: "0755"
+
+    - name: Ensure a decoy TSDProxy configuration file exists in the data path
+      ansible.builtin.copy:
+        content: |
+          # Placed by molecule/default/prepare.yml. TSDProxy never reads this
+          # path; tasks/install.yml is expected to delete this file.
+          log:
+            level: error
+        dest: /tsdproxy/data/tsdproxy.yaml
+        mode: "0644"
