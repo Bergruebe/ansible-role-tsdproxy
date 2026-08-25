@@ -306,13 +306,15 @@
           - ('TSDPROXY_MOLECULE_MARKER=' + tsdproxy_molecule_env_marker) in tsdproxy_molecule_container.Config.Env
           - tsdproxy_molecule_container.Config.User == (tsdproxy_uid | string) + ':' + (tsdproxy_gid | string)
           # tsdproxy_container_additional_mounts is rendered as a real --mount.
+          # `ReadOnly` is omitted altogether for a read-write mount, hence the
+          # default - without it a read-write mount raises instead of failing.
           - (tsdproxy_molecule_authkey_mounts | length) == 1
           - tsdproxy_molecule_authkey_mounts[0].Source == tsdproxy_molecule_authkey_host_path
-          - tsdproxy_molecule_authkey_mounts[0].ReadOnly
+          - tsdproxy_molecule_authkey_mounts[0].ReadOnly | default(false)
           # The Docker socket is handed over read-only. Note that this only
           # blocks writes to the socket inode, not write calls made through it.
           - (tsdproxy_molecule_socket_mounts | length) == 1
-          - tsdproxy_molecule_socket_mounts[0].ReadOnly
+          - tsdproxy_molecule_socket_mounts[0].ReadOnly | default(false)
           # The port publishing branch that used to fail on an undefined variable.
           - (tsdproxy_container_http_port | string) + '/tcp' in tsdproxy_molecule_container.HostConfig.PortBindings
         fail_msg: "The TSDProxy container was not created the way the role describes"
