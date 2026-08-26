@@ -1,9 +1,10 @@
 ---
 galaxy_info:
-  role_name: tsdproxy
   author: Bergruebe
-  namespace: mash
-  description: Ansible role to install and configure TSDProxy
+  company: bergruebe
+  role_name: tsdproxy
+  namespace: bergruebe
+  description: Ansible role for installing TSDProxy
   platforms:
     - name: Debian
       versions:
@@ -16,6 +17,6 @@ galaxy_info:
         - all
     - name: EL
       versions:
-        - all
+        - "7"
   license: AGPL-3.0-or-later
   min_ansible_version: "2.1"
