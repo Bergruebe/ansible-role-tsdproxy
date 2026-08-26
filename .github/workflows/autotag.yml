@@ -24,6 +24,13 @@ jobs:
     name: Autotag
     runs-on: ubuntu-latest
 
+    # Releases are cut in the repository this role is published from, and there
+    # only. A fork sees its own, incomplete set of tags, so it would compute a
+    # release number that is already taken upstream and attach it to different
+    # code. The `mother-of-all-self-hosting` fork, through which contributions
+    # to this role are staged, is exactly that case.
+    if: ${{ !github.event.repository.fork }}
+
     # Tag numbers are derived from the tags that already exist, so two commits
     # landing close together must not be looked at simultaneously - they would
     # both compute the same number. Runs are queued rather than cancelled, so
