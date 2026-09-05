@@ -337,7 +337,7 @@
         fail_msg: "tsdproxy.service restarted while it was being verified"
         success_msg: "tsdproxy.service is still serving its original start"
 
-    - name: Show TSDProxy verification summary
+    - name: Show the TSDProxy verification summary
       ansible.builtin.debug:
         msg:
           - "TSDProxy systemd: {{ tsdproxy_service_after.status.ActiveState }}, {{ tsdproxy_service_after.status.NRestarts }} restart(s)"
