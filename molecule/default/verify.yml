@@ -299,7 +299,7 @@
           - tsdproxy_molecule_container.State.Running
           - tsdproxy_molecule_container.Config.Image == tsdproxy_molecule_expected_image
           # The image's own version label, an independent witness to the log line.
-          - tsdproxy_molecule_container.Config.Labels['org.opencontainers.image.version'] == (tsdproxy_defaults.tsdproxy_version | string)
+          - tsdproxy_molecule_container.Config.Labels['org.opencontainers.image.version'] == tsdproxy_defaults.tsdproxy_version | string
           # From templates/labels.j2, handed over with --label-file.
           - tsdproxy_molecule_container.Config.Labels['com.molecule.tsdproxy.marker'] == 'hello-from-molecule'
           # From templates/env.j2, handed over with --env-file.
