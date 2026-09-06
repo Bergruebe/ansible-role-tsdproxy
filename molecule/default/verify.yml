@@ -274,12 +274,12 @@
           - container
           - inspect
           - tsdproxy
-      register: tsdproxy_container_inspect
+      register: tsdproxy_container_raw
       changed_when: false
 
     - name: Assert the TSDProxy container was created the way the role describes
       vars:
-        tsdproxy_molecule_container: "{{ (tsdproxy_container_inspect.stdout | from_json)[0] }}"
+        tsdproxy_molecule_container: "{{ (tsdproxy_container_raw.stdout | from_json)[0] }}"
         tsdproxy_molecule_expected_image: >-
           {{ tsdproxy_defaults.tsdproxy_container_image_registry_prefix }}almeidapaulopt/tsdproxy:{{ tsdproxy_defaults.tsdproxy_version }}
         tsdproxy_molecule_socket_mounts: >-
