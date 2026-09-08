@@ -40,7 +40,11 @@ tsdproxy_container_image: "{{ tsdproxy_container_image_registry_prefix }}almeida
 tsdproxy_container_image_registry_prefix: docker.io/
 tsdproxy_container_image_tag: "{{ tsdproxy_version }}"
 
+# The base container network. It will be auto-created by this role if it doesn't exist already.
 tsdproxy_container_network: "{{ tsdproxy_identifier }}"
+
+# Control if the container network is deleted on uninstalling.
+tsdproxy_container_network_deletion_enabled: true
 
 # A list of additional container networks that the container would be connected to.
 # The role does not create these networks, so make sure they already exist.
@@ -49,6 +53,18 @@ tsdproxy_container_additional_networks: "{{ tsdproxy_container_additional_networ
 tsdproxy_container_additional_networks_auto: []
 tsdproxy_container_additional_networks_custom: []
 
+# The port that TSDProxy's own HTTP server (its dashboard and health endpoint)
+# listens on inside the container. It is rendered into the configuration file,
+# so changing it moves the listener for real.
+#
+# Note that the image's built-in Docker HEALTHCHECK is a compiled-in probe of
+# 127.0.0.1:8080, so it reports `unhealthy` whenever this is not 8080. Nothing
+# in this role consults that healthcheck.
+tsdproxy_container_http_port: 8080
+
+# Set this to publish TSDProxy's HTTP server on the host (e.g. `127.0.0.1:8080`).
+# TSDProxy does not need it to serve its Tailscale proxies; it only exposes the
+# dashboard.
 tsdproxy_container_http_host_bind_port: ""
 
 tsdproxy_docker_endpoint: unix:///var/run/docker.sock
