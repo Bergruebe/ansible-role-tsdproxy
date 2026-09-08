@@ -27,6 +27,9 @@ provisioner:
   inventory:
     group_vars:
       all:
+        # Helper variables
+        tsdproxy_debug_service_enabled: false
+
         # Every value below is deliberately different from both the role's own
         # default AND from the configuration TSDProxy generates for itself when
         # it finds no configuration file. The two are near-identical - TSDProxy's

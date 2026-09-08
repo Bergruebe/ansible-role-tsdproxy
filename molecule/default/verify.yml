@@ -25,20 +25,24 @@
         file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
         name: tsdproxy_defaults
 
-    - name: Wait for TSDProxy service to become active (up to 180s)
-      ansible.builtin.systemd:
+    - name: Wait for the TSDProxy systemd service to become active (up to 180s)
+      ansible.builtin.systemd_service:
         name: tsdproxy.service
       register: tsdproxy_service
       until: tsdproxy_service.status.ActiveState == 'active'
       retries: 36
       delay: 5
+      # So that giving up is reported by the assertion below rather than as a
+      # wall of systemd unit properties.
       failed_when: false
 
-    # `Restart=always` makes `ActiveState` say `active` for a container that is
-    # crash-looping, so this asserts on the restart counter as well. TSDProxy
+    # `Restart=always` in the systemd unit means that even a container which crashes
+    # and gets restarted reads as active here, so this is a precondition rather than
+    # a result.
+    # this asserts on the restart counter as well. TSDProxy
     # panics and exits 2 when it cannot reach the Docker daemon, which is the
     # failure mode this is here to catch.
-    - name: Assert TSDProxy service is active and has not restarted
+    - name: Assert the TSDProxy systemd service is active and has not restarted
       ansible.builtin.assert:
         that:
           - tsdproxy_service.status.ActiveState == 'active'
@@ -48,6 +52,12 @@
           tsdproxy.service is {{ tsdproxy_service.status.ActiveState }}/{{ tsdproxy_service.status.SubState }}
           after {{ tsdproxy_service.status.NRestarts }} restart(s)
         success_msg: "tsdproxy.service is active and running on its first start"
+
+    - name: Retrieve the TSDProxy systemd service log for debugging
+      when: tsdproxy_debug_service_enabled | bool
+      ansible.builtin.command:
+        cmd: journalctl -xeu tsdproxy.service
+      changed_when: false
 
     - name: Record the TSDProxy systemd invocation under test
       ansible.builtin.set_fact:
