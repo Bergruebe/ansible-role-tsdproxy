@@ -4,28 +4,38 @@ SPDX-FileCopyrightText: 2024 Bergrübe
 SPDX-License-Identifier: AGPL-3.0-or-later
 #}
 
-defaultproxyprovider: default
+{#
+  TSDProxy (v2 and later) reads this file strictly: keys are case-sensitive,
+  and an unknown key - such as the all-lowercase keys of TSDProxy v1 - makes
+  it refuse to start. Values are rendered with `to_json` (which is valid YAML)
+  so that they cannot break the document.
+#}
+defaultProxyProvider: default
 docker:
   local: # name of the docker provider
-    host: {{ tsdproxy_docker_endpoint }} # host of the docker socket or daemon
-    targethostname: 172.31.0.1 # hostname or IP of docker server
-    defaultproxyprovider: default # name of which proxy provider to use
-files: {{ tsdproxy_config_files }}
+    host: {{ tsdproxy_docker_endpoint | to_json }} # host of the docker socket or daemon
+    targetHostname: {{ tsdproxy_docker_target_hostname | to_json }} # hostname or IP of docker server
+    tryDockerInternalNetwork: {{ tsdproxy_docker_try_internal_network | bool | to_json }} # reach containers over shared container networks
+    defaultProxyProvider: default # name of which proxy provider to use
+lists: {{ tsdproxy_config_lists | to_json }}
 tailscale:
   providers:
     default: # name of the provider
-      authkey: {{ tsdproxy_tailscale_authkey }} # define authkey here
-      authkeyfile: {{ tsdproxy_tailscale_authkeyfile }} # use this to load authkey from file. If this is defined, Authkey is ignored
-      controlurl: {{ tsdproxy_controlurl }} # use this to override the default control URL
+      authKey: {{ tsdproxy_tailscale_authkey | to_json }} # define authkey here
+      authKeyFile: {{ tsdproxy_tailscale_authkeyfile | to_json }} # use this to load authkey from file. If this is defined, Authkey is ignored
+      clientId: {{ tsdproxy_tailscale_client_id | to_json }} # OAuth client ID. If clientId and clientSecret are defined, authKey and authKeyFile are ignored
+      clientSecret: {{ tsdproxy_tailscale_client_secret | to_json }} # OAuth client secret
+      tags: {{ tsdproxy_tailscale_tags | to_json }} # default tags for the nodes of this provider
+      controlUrl: {{ tsdproxy_controlurl | to_json }} # use this to override the default control URL
 
-    {{ tsdproxy_additional_providers }}
-  datadir: /data/
+    {{ tsdproxy_additional_providers | indent(4) }}
+  dataDir: /data/
 http:
   hostname: 0.0.0.0
-  port: {{ tsdproxy_container_http_port }}
+  port: {{ tsdproxy_container_http_port | int }}
 log:
-  level: {{ tsdproxy_loglevel }} # set logging level info, error or trace
+  level: {{ tsdproxy_loglevel | to_json }} # set logging level: trace, debug, info, warn, error, fatal or panic
   json: false # set to true to enable json logging
-proxyaccesslog: {{ tsdproxy_proxyaccesslog }} # set to true to enable container access log
+proxyAccessLog: {{ tsdproxy_proxyaccesslog | bool | to_json }} # set to true to enable container access log
 
 {{ tsdproxy_extra_config }}

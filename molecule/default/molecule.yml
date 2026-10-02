@@ -58,9 +58,9 @@ provisioner:
         # tsdproxy_container_additional_mounts (which is what puts the file
         # inside the container) is not inert.
         #
-        # The key itself is fake. It is never used, because nothing in this
-        # scenario carries the `tsdproxy.enable=true` label that would make
-        # TSDProxy try to register a Tailscale node with it. See molecule/README.md.
+        # The key itself is fake. TSDProxy does try to register a Tailscale node
+        # with it for the labelled service that prepare.yml starts, but only
+        # against tsdproxy_controlurl below, which leads nowhere. See molecule/README.md.
         tsdproxy_molecule_authkey_host_path: /var/lib/tsdproxy-molecule/authkey
         tsdproxy_molecule_authkey_container_path: /molecule-authkey
         tsdproxy_tailscale_authkeyfile: "{{ tsdproxy_molecule_authkey_container_path }}"
@@ -77,7 +77,26 @@ provisioner:
             json: true
           docker:
             local:
-              targethostname: 10.99.0.7
+              targetHostname: 10.99.0.7
+
+        # Role default: https://controlplane.tailscale.com.
+        #
+        # The labelled service makes TSDProxy create a Tailscale node, and that
+        # node has to authenticate somewhere. Nothing listens on the discard
+        # port, so the attempt fails at once and locally, instead of sending a
+        # fake authkey to Tailscale's real control plane on every CI run.
+        tsdproxy_controlurl: http://127.0.0.1:9
+
+        # A service for TSDProxy to discover, started by prepare.yml on a network
+        # of its own. TSDProxy only reaches it because of this
+        # tsdproxy_container_additional_networks_custom entry and the role's
+        # tsdproxy_docker_try_internal_network default (TSDProxy's own default
+        # would target the service through 10.99.0.7, see above).
+        tsdproxy_molecule_service_network: tsdproxy-molecule-service
+        tsdproxy_molecule_service_container: tsdproxy-molecule-whoami
+        tsdproxy_molecule_service_proxy_name: molecule-whoami
+        tsdproxy_container_additional_networks_custom:
+          - "{{ tsdproxy_molecule_service_network }}"
 
         # Written to a separate file (`labels`) and handed to Docker with
         # `--label-file`, so it is checked against the container's real labels.
@@ -85,12 +104,17 @@ provisioner:
           com.molecule.tsdproxy.marker=hello-from-molecule
 
         # Written to a separate file (`env`) and handed to Docker with
-        # `--env-file`. TSDProxy itself reads no environment variables at all
-        # (it has no viper/envconfig layer - only the `-config` flag and the
-        # YAML file), so this checks the plumbing, not the application.
+        # `--env-file`. TSDProxy configures itself from the YAML file, not from
+        # the environment, so the marker checks the plumbing, not the
+        # application.
+        #
+        # TS_NO_LOGS_NO_SUPPORT is read by the Tailscale library TSDProxy embeds,
+        # and stops the node created for the labelled service from uploading its
+        # logs to log.tailscale.com.
         tsdproxy_molecule_env_marker: hello-from-molecule-env
         tsdproxy_environment_variables_extension: |
           TSDPROXY_MOLECULE_MARKER={{ tsdproxy_molecule_env_marker }}
+          TS_NO_LOGS_NO_SUPPORT=true
 
         tsdproxy_uid: 1000
 

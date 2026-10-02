@@ -13,6 +13,7 @@
   when: "lookup('ansible.builtin.varnames', ('^' + item.old + '$'), wantlist=True) | length > 0"
   with_items:
     - { "old": "tsdproxy_container_image_force_pull", "new": "<removed> (the new community.docker.docker_image_pull module handles this natively)" }
+    - { "old": "tsdproxy_config_files", "new": "tsdproxy_config_lists (TSDProxy v2 renamed this section and changed the format of its entries, see the README)" }
 
 - name: Fail if required TSDProxy settings not defined
   ansible.builtin.fail:
@@ -24,3 +25,35 @@
     - tsdproxy_gid
     - tsdproxy_docker_endpoint
     - tsdproxy_controlurl
+
+# TSDProxy v2 renamed most of its configuration keys to camelCase (`authkey` ->
+# `authKey`, `targethostname` -> `targetHostname`, `files` -> `lists`, ...) and
+# rejects any key it does not know. A v1 key carried over through
+# `tsdproxy_additional_providers`, `tsdproxy_extra_config` or
+# `tsdproxy_configuration_extension_yaml` would therefore not be ignored, but
+# make TSDProxy exit at startup - and, under `Restart=always`, crash-loop.
+- name: Fail if the TSDProxy configuration contains TSDProxy v1 keys
+  ansible.builtin.fail:
+    msg: >-
+      Your TSDProxy configuration contains keys from TSDProxy v1, which TSDProxy v2 rejects
+      (its configuration keys are case-sensitive and mostly camelCase now): {{ tsdproxy_configuration_v1_keys | join(', ') }}.
+      Please rename them (e.g. `authkey` -> `authKey`, `authkeyfile` -> `authKeyFile`, `controlurl` -> `controlUrl`,
+      `targethostname` -> `targetHostname`, `files` -> `lists`). See the README and https://almeidapaulopt.github.io/tsdproxy/docs/serverconfig/
+  vars:
+    tsdproxy_configuration_v1_keys: |-
+      {{
+        (tsdproxy_configuration | list | intersect(['defaultproxyprovider', 'proxyaccesslog', 'files']))
+        +
+        ((tsdproxy_configuration.docker | default({}, true)).values() | select('mapping') | map('list') | flatten
+          | intersect(['defaultproxyprovider', 'targethostname', 'trydockerinternalnetwork']) | map('regex_replace', '^', 'docker.*.') | list)
+        +
+        ((tsdproxy_configuration.lists | default({}, true)).values() | select('mapping') | map('list') | flatten
+          | intersect(['defaultproxyprovider', 'defaultproxyaccesslog']) | map('regex_replace', '^', 'lists.*.') | list)
+        +
+        ((tsdproxy_configuration.tailscale | default({}, true)) | list
+          | intersect(['datadir']) | map('regex_replace', '^', 'tailscale.') | list)
+        +
+        (((tsdproxy_configuration.tailscale | default({}, true)).providers | default({}, true)).values() | select('mapping') | map('list') | flatten
+          | intersect(['authkey', 'authkeyfile', 'controlurl', 'clientid', 'clientsecret']) | map('regex_replace', '^', 'tailscale.providers.*.') | list)
+      }}
+  when: tsdproxy_configuration_v1_keys | length > 0
