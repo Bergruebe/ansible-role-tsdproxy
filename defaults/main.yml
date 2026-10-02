@@ -14,7 +14,7 @@ tsdproxy_enabled: true
 tsdproxy_identifier: tsdproxy
 
 # renovate: datasource=docker depName=almeidapaulopt/tsdproxy
-tsdproxy_version: 1.4.7
+tsdproxy_version: 2.3.4
 
 tsdproxy_uid: ""
 tsdproxy_gid: ""
@@ -57,9 +57,8 @@ tsdproxy_container_additional_networks_custom: []
 # listens on inside the container. It is rendered into the configuration file,
 # so changing it moves the listener for real.
 #
-# Note that the image's built-in Docker HEALTHCHECK is a compiled-in probe of
-# 127.0.0.1:8080, so it reports `unhealthy` whenever this is not 8080. Nothing
-# in this role consults that healthcheck.
+# The image's built-in Docker HEALTHCHECK follows this setting: TSDProxy writes
+# the port it listens on into its data directory, where the healthcheck reads it.
 tsdproxy_container_http_port: 8080
 
 # Set this to publish TSDProxy's HTTP server on the host (e.g. `127.0.0.1:8080`).
@@ -70,22 +69,62 @@ tsdproxy_container_http_host_bind_port: ""
 tsdproxy_docker_endpoint: unix:///var/run/docker.sock
 tsdproxy_docker_endpoint_is_unix_socket: true
 
-tsdproxy_config_files: {}
+# Controls whether TSDProxy finds the services it proxies by probing them over
+# the container networks it shares with them (`tryDockerInternalNetwork`).
+#
+# This is what services which do not publish their ports on the host need -
+# which is the norm in this role's setup, where services are reached through
+# a shared container network (see `tsdproxy_container_additional_networks`).
+# TSDProxy itself defaults this to `false`, in which case it targets
+# `tsdproxy_docker_target_hostname` with the container's port instead.
+# A container can override this with the `tsdproxy.autodetect` label.
+tsdproxy_docker_try_internal_network: true
+
+# The hostname or IP address of the container host, as seen from inside the
+# TSDProxy container (`targetHostname`). TSDProxy uses it to reach services via
+# their published ports when it does not (or cannot) reach them directly.
+#
+# The systemd service maps `host.docker.internal` to the host's gateway address
+# (`--add-host=host.docker.internal:host-gateway`), as TSDProxy recommends.
+tsdproxy_docker_target_hostname: host.docker.internal
+
+# Proxy lists, rendered as the `lists` section of the configuration file.
+# The list files themselves are not managed by this role. Put them into
+# `tsdproxy_config_path`, which is mounted at `/config` in the container.
+#
+# Example:
+# tsdproxy_config_lists:
+#   critical:
+#     filename: /config/critical.yaml
+#     defaultProxyProvider: default
+#     defaultProxyAccessLog: true
+tsdproxy_config_lists: {}
 
 tsdproxy_tailscale_authkey: ""
 tsdproxy_tailscale_authkeyfile: "" # use this to load authkey from file. If this is defined, Authkey is ignored
 
+# OAuth client credentials, an alternative to an authkey. When both are defined,
+# `tsdproxy_tailscale_authkey` and `tsdproxy_tailscale_authkeyfile` are ignored.
+tsdproxy_tailscale_client_id: ""
+tsdproxy_tailscale_client_secret: ""
+
+# Default tags (comma-separated, e.g. `tag:server,tag:web`) for the Tailscale
+# nodes created with the default provider. Container labels override these.
+tsdproxy_tailscale_tags: ""
+
 tsdproxy_controlurl: "https://controlplane.tailscale.com" # use this to override the default control URL
 
-tsdproxy_loglevel: info # set logging level info, error or trace
+tsdproxy_loglevel: info # set logging level: trace, debug, info, warn, error, fatal or panic
 tsdproxy_proxyaccesslog: true # set to true to enable container access log
 
-# define additional providers here in following format
-#    tsdproxy_additional_providers: |
-#        provider-name:
-#          authkey: "{{ tsdproxy_tailscale_authkey }}" # define authkey here
-#          authkeyfile: "{{ tsdproxy_tailscale_authkeyfile }}" # use this to load authkey from file. If this is defined, Authkey is ignored
-#          controlurl: "{{ tsdproxy_controlurl }}" # use this to override the default control URL
+# Define additional Tailscale providers here, in the following format.
+# Note that TSDProxy's configuration keys are case-sensitive.
+#
+# tsdproxy_additional_providers: |
+#   provider-name:
+#     authKey: "{{ tsdproxy_tailscale_authkey }}" # define authkey here
+#     authKeyFile: "{{ tsdproxy_tailscale_authkeyfile }}" # use this to load authkey from file. If this is defined, Authkey is ignored
+#     controlUrl: "{{ tsdproxy_controlurl }}" # use this to override the default control URL
 tsdproxy_additional_providers: ""
 
 # configuration added to the tsdproxy.yaml file

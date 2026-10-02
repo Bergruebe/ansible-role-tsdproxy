@@ -75,3 +75,39 @@
             level: error
         dest: /tsdproxy/data/tsdproxy.yaml
         mode: "0644"
+
+    # A service for TSDProxy to discover. It is started before the role runs,
+    # so TSDProxy finds it in its initial container listing rather than through
+    # the Docker event stream.
+    #
+    # It sits on a network of its own and publishes no port, which is how
+    # services are usually set up next to this role: TSDProxy can only reach it
+    # by joining that network (tsdproxy_container_additional_networks_custom)
+    # and probing it there (tsdproxy_docker_try_internal_network).
+    - name: Ensure the network of the TSDProxy Molecule service exists
+      ansible.builtin.command:
+        argv:
+          - docker
+          - network
+          - create
+          - "{{ tsdproxy_molecule_service_network }}"
+      register: tsdproxy_molecule_service_network_result
+      changed_when: tsdproxy_molecule_service_network_result.rc == 0
+      failed_when: >-
+        tsdproxy_molecule_service_network_result.rc != 0
+        and 'already exists' not in tsdproxy_molecule_service_network_result.stderr
+
+    - name: Ensure the TSDProxy Molecule service is running
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --detach
+          - --restart=unless-stopped
+          - --name={{ tsdproxy_molecule_service_container }}
+          - --network={{ tsdproxy_molecule_service_network }}
+          - --label=tsdproxy.enable=true
+          - --label=tsdproxy.name={{ tsdproxy_molecule_service_proxy_name }}
+          - --label=tsdproxy.port.1=443/https:80/http
+          - docker.io/traefik/whoami:v1.12.0
+      changed_when: true

@@ -31,6 +31,7 @@ ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} create \
                 {% endif %}
                 --label-file={{ tsdproxy_base_path }}/labels \
                 --network={{ tsdproxy_container_network }} \
+                --add-host=host.docker.internal:host-gateway \
                 {% for mount in tsdproxy_container_additional_mounts %}
                 --mount {{ mount }} \
                 {% endfor %}
